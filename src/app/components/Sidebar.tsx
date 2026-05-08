@@ -20,7 +20,7 @@ export default function Sidebar({ activeView, onViewChange, userRole, onLogout }
     <div className="w-full md:w-64 bg-slate-900 md:border-r border-t md:border-t-0 border-slate-800 md:h-screen flex md:flex-col z-10">
       <div className="hidden md:block p-6 border-b border-slate-800">
         <h1 className="text-2xl font-bold text-white">JPCFIX</h1>
-        <p className="text-sm text-slate-400 mt-1">Servicio Técnico</p>
+        <p className="text-sm text-slate-400 mt-1">soluciones tecnologicas</p>
       </div>
 
       <nav className="flex-1 flex md:flex-col justify-around md:justify-start p-1 md:p-4 md:space-y-2">
