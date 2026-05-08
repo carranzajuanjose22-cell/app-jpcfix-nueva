@@ -5,6 +5,7 @@ import CollaborativeBoard from './components/CollaborativeBoard';
 import TransactionHistory from './components/TransactionHistory';
 import TransactionModal from './components/TransactionModal';
 import WorksAndPayments from './components/WorksAndPayments';
+import Clients from './components/Clients';
 import { turso } from './components/turso';
 
 interface Transaction {
@@ -219,12 +220,7 @@ export default function App() {
           )}
 
           {activeView === 'clientes' && (
-            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 text-center">
-              <h2 className="text-2xl font-semibold text-white mb-4">Módulo de Clientes</h2>
-              <p className="text-slate-400">
-                Esta sección estará disponible próximamente. Aquí podrás gestionar la información de tus clientes.
-              </p>
-            </div>
+            <Clients />
           )}
         </div>
       </div>
