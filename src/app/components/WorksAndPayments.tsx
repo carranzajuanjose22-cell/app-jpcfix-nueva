@@ -130,10 +130,10 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex">
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          className="w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
         >
           <Plus size={20} />
           Registrar Trabajo

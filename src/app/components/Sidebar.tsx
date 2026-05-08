@@ -14,27 +14,27 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   ];
 
   return (
-    <div className="w-64 bg-slate-900 border-r border-slate-800 h-screen flex flex-col">
-      <div className="p-6 border-b border-slate-800">
+    <div className="w-full md:w-64 bg-slate-900 md:border-r border-t md:border-t-0 border-slate-800 md:h-screen flex md:flex-col z-10">
+      <div className="hidden md:block p-6 border-b border-slate-800">
         <h1 className="text-2xl font-bold text-white">JPCFIX</h1>
         <p className="text-sm text-slate-400 mt-1">Servicio Técnico</p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 flex md:flex-col justify-around md:justify-start p-1 md:p-4 md:space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
               key={item.id}
               onClick={() => onViewChange(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-3 px-2 md:px-4 py-2 rounded-lg transition-all text-center md:text-left md:w-full ${
                 activeView === item.id
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
               <Icon size={20} />
-              <span>{item.label}</span>
+              <span className="text-xs md:text-base">{item.label}</span>
             </button>
           );
         })}

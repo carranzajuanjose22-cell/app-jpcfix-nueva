@@ -175,11 +175,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950">
+    <div className="flex flex-col-reverse md:flex-row h-screen bg-slate-950">
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
 
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 md:p-8 pb-20 md:pb-8">
           {dbError && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
               <h3 className="text-red-500 font-semibold mb-1">Problema de conexión con la Base de Datos</h3>

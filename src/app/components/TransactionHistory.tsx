@@ -26,19 +26,19 @@ export default function TransactionHistory({ transactions, onNewIngreso, onNewEg
 
   return (
     <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-white">Movimientos Recientes</h2>
-        <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <h2 className="text-xl font-semibold text-white shrink-0">Movimientos Recientes</h2>
+        <div className="flex gap-3 w-full sm:w-auto">
           <button
             onClick={onNewIngreso}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
           >
             <TrendingUp size={18} />
             Nuevo Ingreso
           </button>
           <button
             onClick={onNewEgreso}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
           >
             <TrendingDown size={18} />
             Nuevo Egreso
@@ -50,7 +50,7 @@ export default function TransactionHistory({ transactions, onNewIngreso, onNewEg
         {transactions.slice(0, 10).map((transaction) => (
           <div
             key={transaction.id}
-            className="flex items-center justify-between p-4 bg-slate-900 rounded-lg border border-slate-700"
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-4 bg-slate-900 rounded-lg border border-slate-700"
           >
             <div className="flex items-center gap-4">
               <div
@@ -79,7 +79,7 @@ export default function TransactionHistory({ transactions, onNewIngreso, onNewEg
               </div>
             </div>
             <div
-              className={`text-lg font-semibold ${
+              className={`w-full sm:w-auto text-right text-lg font-semibold ${
                 transaction.type === 'ingreso' ? 'text-green-500' : 'text-red-500'
               }`}
             >
