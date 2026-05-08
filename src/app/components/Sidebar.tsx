@@ -1,4 +1,4 @@
-import { LayoutDashboard, DollarSign, Wrench, Users } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wrench, Users, Shield } from 'lucide-react';
 
 interface SidebarProps {
   activeView: string;
@@ -11,6 +11,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
     { id: 'finanzas', label: 'Finanzas', icon: DollarSign },
     { id: 'trabajos', label: 'Trabajos', icon: Wrench },
     { id: 'clientes', label: 'Clientes', icon: Users },
+    { id: 'usuarios', label: 'Usuarios', icon: Shield },
   ];
 
   return (

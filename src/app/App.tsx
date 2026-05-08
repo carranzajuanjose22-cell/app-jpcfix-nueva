@@ -7,6 +7,8 @@ import TransactionModal from './components/TransactionModal';
 import WorksAndPayments from './components/WorksAndPayments';
 import Clients from './components/Clients';
 import { turso } from './components/turso';
+import Login from './components/Login';
+import UsersManagement from './components/UsersManagement';
 
 interface Transaction {
   id: string;
@@ -18,6 +20,10 @@ interface Transaction {
 }
 
 export default function App() {
+  // Estado para controlar si el usuario ha iniciado sesión.
+  // Inicialmente en false para que muestre el login.
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
   const [activeView, setActiveView] = useState('tablero');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'ingreso' | 'egreso'>('ingreso');
@@ -33,6 +39,8 @@ export default function App() {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
+        if (!isAuthenticated) return; // Evitar llamadas si no está autenticado
+
         // 1. Nos aseguramos de que la tabla exista en Turso antes de intentar leerla
         await turso.execute(`
           CREATE TABLE IF NOT EXISTS transactions (
@@ -97,7 +105,7 @@ export default function App() {
     };
 
     fetchTransactions();
-  }, []);
+  }, [isAuthenticated]); // Se vuelve a ejecutar cuando el usuario inicia sesión
 
   const handleNewTransaction = (transaction: {
     amount: number;
@@ -175,6 +183,11 @@ export default function App() {
     setModalOpen(true);
   };
 
+  // Si no está autenticado, renderizamos solo el componente Login
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="flex flex-col-reverse md:flex-row h-screen bg-slate-950">
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
@@ -221,6 +234,10 @@ export default function App() {
 
           {activeView === 'clientes' && (
             <Clients />
+          )}
+
+          {activeView === 'usuarios' && (
+            <UsersManagement />
           )}
         </div>
       </div>
