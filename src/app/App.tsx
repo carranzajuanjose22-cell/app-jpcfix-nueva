@@ -225,7 +225,7 @@ export default function App() {
                 transferencia={saldoTransferencia}
                 cajaJpcfix={cajaJpcfix}
               />
-              <CollaborativeBoard />
+              <CollaborativeBoard currentUser={currentUser} />
             </>
           )}
 
