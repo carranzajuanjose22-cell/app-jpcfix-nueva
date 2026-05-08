@@ -7,12 +7,13 @@ const stripQuotes = (str: string) => str.replace(/^["'](.*)["']$/, '$1');
 const envUrl = stripQuotes((import.meta.env.VITE_TURSO_DATABASE_URL || '').trim());
 const envToken = stripQuotes((import.meta.env.VITE_TURSO_AUTH_TOKEN || '').trim());
 
-// Forzamos el uso de HTTPS, que suele ser el protocolo más seguro contra bloqueos de red en el navegador
-const forceHttps = (url: string) => url.replace('libsql://', 'https://').replace('wss://', 'https://');
-const parsedEnvUrl = envUrl ? forceHttps(envUrl) : '';
+// Forzamos el uso de WebSockets (wss://). Esto evita que los navegadores móviles 
+// (como Chrome en modo ahorro de datos) intercepten y bloqueen la conexión.
+const forceWss = (url: string) => url.replace('libsql://', 'wss://').replace('https://', 'wss://');
+const parsedEnvUrl = envUrl ? forceWss(envUrl) : '';
 
 // Usamos las credenciales directas como respaldo para descartar problemas con el .env
-const url = parsedEnvUrl || "https://jpcfix-app-juanjokpodela3ra.aws-us-east-1.turso.io";
+const url = parsedEnvUrl || "wss://jpcfix-app-juanjokpodela3ra.aws-us-east-1.turso.io";
 const authToken = envToken || "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzgyMTExODcsImlkIjoiMDE5ZTA1OWItMTUwMS03NzAzLThmYmItMTI4ZGVlYzFiNDQ4IiwicmlkIjoiZGVjNGQ3ZjMtZjdjMi00Y2ExLTljYTktZDVlZjdlODAxNWI1In0.fOwr9arDF4UmjYQiwmpkY-at98_faRILLdu44Nujgj5pEk1cQ2Zr9yqacljN8Mdz7J4PupZuQiUmdgJcg4J4Bg";
 
 console.log("Intentando conectar a Turso URL:", url);
