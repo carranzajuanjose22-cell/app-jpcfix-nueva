@@ -20,9 +20,12 @@ interface Transaction {
 }
 
 export default function App() {
-  // Estado para controlar si el usuario ha iniciado sesión.
-  // Inicialmente en false para que muestre el login.
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Recuperar la sesión del localStorage si existe
+  const [currentUser, setCurrentUser] = useState<{ username: string; role: string } | null>(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(!!currentUser);
   
   const [activeView, setActiveView] = useState('tablero');
   const [modalOpen, setModalOpen] = useState(false);
@@ -183,14 +186,27 @@ export default function App() {
     setModalOpen(true);
   };
 
+  const handleLogin = (user: { username: string; role: string }) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('currentUser');
+    setActiveView('tablero');
+  };
+
   // Si no está autenticado, renderizamos solo el componente Login
   if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
+    return <Login onLogin={handleLogin} />;
   }
 
   return (
     <div className="flex flex-col-reverse md:flex-row h-screen bg-slate-950">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
+      <Sidebar activeView={activeView} onViewChange={setActiveView} userRole={currentUser?.role} onLogout={handleLogout} />
 
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 md:p-8 pb-20 md:pb-8">
@@ -213,7 +229,7 @@ export default function App() {
             </>
           )}
 
-          {activeView === 'finanzas' && (
+          {activeView === 'finanzas' && currentUser?.role === 'admin' && (
             <>
               <FinancialSummary
                 efectivo={saldoEfectivo}
@@ -236,7 +252,7 @@ export default function App() {
             <Clients />
           )}
 
-          {activeView === 'usuarios' && (
+          {activeView === 'usuarios' && currentUser?.role === 'admin' && (
             <UsersManagement />
           )}
         </div>

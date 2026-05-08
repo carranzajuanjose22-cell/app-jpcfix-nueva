@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { turso } from './turso'; // Importar la instancia de Turso
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (user: { username: string; role: string }) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
@@ -62,7 +62,11 @@ export default function Login({ onLogin }: LoginProps) {
 
       if (rows.length > 0) {
         // Usuario y contraseña correctos
-        onLogin();
+        const user = rows[0];
+        onLogin({
+          username: String(user.username),
+          role: String(user.role || 'user'),
+        });
       } else {
         // Credenciales incorrectas
         setError('Usuario o contraseña incorrectos.');

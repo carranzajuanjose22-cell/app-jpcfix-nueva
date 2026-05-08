@@ -1,17 +1,19 @@
-import { LayoutDashboard, DollarSign, Wrench, Users, Shield } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wrench, Users, Shield, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  userRole?: string;
+  onLogout?: () => void;
 }
 
-export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
+export default function Sidebar({ activeView, onViewChange, userRole, onLogout }: SidebarProps) {
   const menuItems = [
     { id: 'tablero', label: 'Tablero', icon: LayoutDashboard },
-    { id: 'finanzas', label: 'Finanzas', icon: DollarSign },
+    ...(userRole === 'admin' ? [{ id: 'finanzas', label: 'Finanzas', icon: DollarSign }] : []),
     { id: 'trabajos', label: 'Trabajos', icon: Wrench },
     { id: 'clientes', label: 'Clientes', icon: Users },
-    { id: 'usuarios', label: 'Usuarios', icon: Shield },
+    ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Shield }] : []),
   ];
 
   return (
@@ -40,6 +42,13 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
           );
         })}
       </nav>
+
+      <div className="hidden md:block p-6 mt-auto border-t border-slate-800">
+        <button onClick={onLogout} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors w-full">
+          <LogOut size={20} />
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
     </div>
   );
 }
