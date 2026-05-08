@@ -64,16 +64,22 @@ export default function App() {
         let calcCaja = 0;
 
         loadedTransactions.forEach(t => {
-          if (t.type === 'ingreso') {
-            if (t.paymentMethod === 'efectivo') calcEfectivo += t.amount;
-            else calcTransferencia += t.amount;
-            
-            if (t.concept.includes('(con retención 30%)')) {
-               calcCaja += (t.amount / 0.7) * 0.3;
-            }
+          // Si es un movimiento directo de caja, solo afecta a la caja
+          if (t.concept.includes('[CAJA]')) {
+            if (t.type === 'ingreso') calcCaja += t.amount;
+            else calcCaja -= t.amount;
           } else {
-            if (t.paymentMethod === 'efectivo') calcEfectivo -= t.amount;
-            else calcTransferencia -= t.amount;
+            if (t.type === 'ingreso') {
+              if (t.paymentMethod === 'efectivo') calcEfectivo += t.amount;
+              else calcTransferencia += t.amount;
+              
+              if (t.concept.includes('(con retención 30%)')) {
+                 calcCaja += (t.amount / 0.7) * 0.3;
+              }
+            } else {
+              if (t.paymentMethod === 'efectivo') calcEfectivo -= t.amount;
+              else calcTransferencia -= t.amount;
+            }
           }
         });
 
@@ -97,11 +103,15 @@ export default function App() {
     concept: string;
     paymentMethod: 'efectivo' | 'transferencia';
     withRetention: boolean;
+    isCaja?: boolean;
   }) => {
     let finalAmount = transaction.amount;
     let retentionAmount = 0;
+    let finalConcept = transaction.concept;
 
-    if (modalType === 'ingreso' && transaction.withRetention) {
+    if (transaction.isCaja) {
+      finalConcept = `[CAJA] ${finalConcept}`;
+    } else if (modalType === 'ingreso' && transaction.withRetention) {
       retentionAmount = transaction.amount * 0.3;
       finalAmount = transaction.amount * 0.7;
       setCajaJpcfix(cajaJpcfix + retentionAmount);
@@ -111,9 +121,9 @@ export default function App() {
       id: Date.now().toString(),
       type: modalType,
       amount: finalAmount,
-      concept: transaction.withRetention
-        ? `${transaction.concept} (con retención 30%)`
-        : transaction.concept,
+      concept: (modalType === 'ingreso' && transaction.withRetention && !transaction.isCaja)
+        ? `${finalConcept} (con retención 30%)`
+        : finalConcept,
       paymentMethod: transaction.paymentMethod,
       date: new Date().toISOString().split('T')[0],
     };
@@ -126,17 +136,23 @@ export default function App() {
       args: [newTransaction.id, newTransaction.type, newTransaction.amount, newTransaction.concept, newTransaction.paymentMethod, newTransaction.date]
     }).catch(err => console.error('Error guardando en Turso:', err));
 
-    if (modalType === 'ingreso') {
-      if (transaction.paymentMethod === 'efectivo') {
-        setSaldoEfectivo(saldoEfectivo + finalAmount);
-      } else {
-        setSaldoTransferencia(saldoTransferencia + finalAmount);
-      }
+    // Actualizamos los saldos locales según la cuenta seleccionada
+    if (transaction.isCaja) {
+      if (modalType === 'ingreso') setCajaJpcfix(cajaJpcfix + finalAmount);
+      else setCajaJpcfix(cajaJpcfix - finalAmount);
     } else {
-      if (transaction.paymentMethod === 'efectivo') {
-        setSaldoEfectivo(saldoEfectivo - finalAmount);
+      if (modalType === 'ingreso') {
+        if (transaction.paymentMethod === 'efectivo') {
+          setSaldoEfectivo(saldoEfectivo + finalAmount);
+        } else {
+          setSaldoTransferencia(saldoTransferencia + finalAmount);
+        }
       } else {
-        setSaldoTransferencia(saldoTransferencia - finalAmount);
+        if (transaction.paymentMethod === 'efectivo') {
+          setSaldoEfectivo(saldoEfectivo - finalAmount);
+        } else {
+          setSaldoTransferencia(saldoTransferencia - finalAmount);
+        }
       }
     }
   };

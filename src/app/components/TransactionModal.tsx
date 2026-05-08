@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Wallet, CreditCard } from 'lucide-react';
+import { X, Wallet, CreditCard, Briefcase, LayoutDashboard } from 'lucide-react';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface TransactionModalProps {
     concept: string;
     paymentMethod: 'efectivo' | 'transferencia';
     withRetention: boolean;
+    isCaja: boolean;
   }) => void;
 }
 
@@ -18,6 +19,7 @@ export default function TransactionModal({ isOpen, onClose, type, onSubmit }: Tr
   const [concept, setConcept] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'transferencia'>('efectivo');
   const [withRetention, setWithRetention] = useState(false);
+  const [account, setAccount] = useState<'general' | 'caja'>('general');
 
   if (!isOpen) return null;
 
@@ -27,12 +29,14 @@ export default function TransactionModal({ isOpen, onClose, type, onSubmit }: Tr
       amount: parseFloat(amount),
       concept,
       paymentMethod,
-      withRetention,
+      withRetention: account === 'general' ? withRetention : false,
+      isCaja: account === 'caja',
     });
     setAmount('');
     setConcept('');
     setPaymentMethod('efectivo');
     setWithRetention(false);
+    setAccount('general');
     onClose();
   };
 
@@ -65,6 +69,36 @@ export default function TransactionModal({ isOpen, onClose, type, onSubmit }: Tr
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-3">Cuenta Destino / Origen</label>
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <button
+                type="button"
+                onClick={() => setAccount('general')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-lg border-2 transition-all ${
+                  account === 'general'
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-500'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                <LayoutDashboard size={20} />
+                <span>General</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccount('caja')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-lg border-2 transition-all ${
+                  account === 'caja'
+                    ? 'bg-purple-600/20 border-purple-500 text-purple-500'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                <Briefcase size={20} />
+                <span>Caja JPCFIX</span>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm text-slate-400 mb-2">Monto</label>
             <input
@@ -119,7 +153,7 @@ export default function TransactionModal({ isOpen, onClose, type, onSubmit }: Tr
             </div>
           </div>
 
-          {type === 'ingreso' && (
+          {type === 'ingreso' && account === 'general' && (
             <div className="pt-4 border-t border-slate-700">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
