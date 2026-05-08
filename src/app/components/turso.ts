@@ -1,8 +1,11 @@
 import { createClient } from '@libsql/client/web';
 
+// Función de seguridad para eliminar comillas accidentales
+const stripQuotes = (str: string) => str.replace(/^["'](.*)["']$/, '$1');
+
 // Limpiamos las variables y eliminamos posibles espacios en blanco
-const envUrl = (import.meta.env.VITE_TURSO_DATABASE_URL || '').trim();
-const envToken = (import.meta.env.VITE_TURSO_AUTH_TOKEN || '').trim();
+const envUrl = stripQuotes((import.meta.env.VITE_TURSO_DATABASE_URL || '').trim());
+const envToken = stripQuotes((import.meta.env.VITE_TURSO_AUTH_TOKEN || '').trim());
 
 // Forzamos el uso de HTTPS, que suele ser el protocolo más seguro contra bloqueos de red en el navegador
 const forceHttps = (url: string) => url.replace('libsql://', 'https://').replace('wss://', 'https://');
