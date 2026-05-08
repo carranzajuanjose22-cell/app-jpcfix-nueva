@@ -82,7 +82,14 @@ export default function Login({ onLogin }: LoginProps) {
   return (
     <div className="flex items-center justify-center h-screen bg-slate-950">
       <div className="bg-slate-900 p-8 rounded-xl shadow-lg border border-slate-800 w-full max-w-md">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
+        <div className="flex justify-center mb-2"> 
+          {/* Logo de JPCFix en la pantalla de inicio de sesión, ajustado a un tamaño válido de Tailwind (h-32) */}
+          <img src="/jpcfix-logo.png" alt="Logo JPCFix" className="h-32 w-auto" />
+        </div>
+        
+        <h2 className="text-2xl font-bold text-white mb-6 text-center">
+          Iniciar Sesión
+        </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-slate-400 mb-2 text-sm">Usuario</label>

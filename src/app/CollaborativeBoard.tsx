@@ -96,7 +96,9 @@ export default function CollaborativeBoard({ currentUser }: CollaborativeBoardPr
           <div key={note.id} className="bg-slate-800 p-4 rounded-lg border border-slate-700 group">
             <p className="text-slate-200 whitespace-pre-wrap">{note.content}</p>
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700/50">
-              <div className="flex items-center gap-2 text-xs text-slate-400"><User size={14} /><span className="font-medium capitalize">{note.author}</span></div>
+              <div className="flex items-center gap-2 text-xs text-slate-400"> 
+                <User size={14} />
+                <span className="font-medium capitalize">{note.author}</span></div>
               {(currentUser?.role === 'admin' || currentUser?.username === note.author) && (<button onClick={() => handleDeleteNote(note.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Eliminar nota"><Trash2 size={16} /></button>)}
             </div>
           </div>
