@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Wrench, AlertCircle, CheckCircle2, Clock, Plus } from 'lucide-react';
+import { Wrench, AlertCircle, CheckCircle2, Clock, Plus, History, ListTodo, RotateCcw, Trash2, CheckCheck } from 'lucide-react';
 import { turso } from './turso';
 
 interface Work {
   id: string;
   client: string;
   type: string;
-  status: 'en-progreso' | 'finalizado' | 'pendiente';
+  status: 'en-progreso' | 'finalizado' | 'pendiente' | 'cobrado';
   amount?: number;
 }
 
@@ -17,6 +17,8 @@ interface WorksAndPaymentsProps {
 export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps) {
   const [pendingWorks, setPendingWorks] = useState<Work[]>([]);
   const [pendingPayments, setPendingPayments] = useState<Work[]>([]);
+  const [historyWorks, setHistoryWorks] = useState<Work[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   // Turso se encarga de todo el SQL automáticamente
@@ -42,8 +44,9 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
           amount: row.amount ? Number(row.amount) : undefined
         }));
 
-        setPendingWorks(loadedWorks.filter(w => w.status !== 'finalizado'));
+        setPendingWorks(loadedWorks.filter(w => w.status === 'pendiente' || w.status === 'en-progreso'));
         setPendingPayments(loadedWorks.filter(w => w.status === 'finalizado'));
+        setHistoryWorks(loadedWorks.filter(w => w.status === 'cobrado'));
       } catch (error) {
         console.error('Error cargando trabajos desde Turso:', error);
       }
@@ -80,17 +83,84 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
     }
   };
 
+  const handleStatusChange = async (workId: string, newStatus: Work['status']) => {
+    let updatedWork: Work | undefined;
+    const isCurrentlyPending = pendingWorks.some(w => w.id === workId);
+    
+    if (isCurrentlyPending) {
+      updatedWork = { ...pendingWorks.find(w => w.id === workId)!, status: newStatus };
+      if (newStatus === 'finalizado') {
+        setPendingWorks(pendingWorks.filter(w => w.id !== workId));
+        setPendingPayments([updatedWork, ...pendingPayments]);
+      } else {
+        setPendingWorks(pendingWorks.map(w => w.id === workId ? updatedWork! : w));
+      }
+    } else {
+      updatedWork = { ...pendingPayments.find(w => w.id === workId)!, status: newStatus };
+      if (newStatus !== 'finalizado') {
+        setPendingPayments(pendingPayments.filter(w => w.id !== workId));
+        setPendingWorks([updatedWork, ...pendingWorks]);
+      } else {
+        setPendingPayments(pendingPayments.map(w => w.id === workId ? updatedWork! : w));
+      }
+    }
+
+    try {
+      await turso.execute({
+        sql: "UPDATE works SET status = ? WHERE id = ?",
+        args: [newStatus, workId]
+      });
+    } catch (error) {
+      console.error('Error actualizando estado del trabajo en Turso:', error);
+    }
+  };
+
   const handlePaymentClick = async (workId: string) => {
     onMarkAsPaid(workId);
-    setPendingPayments(pendingPayments.filter(w => w.id !== workId));
+    
+    const workToMove = pendingPayments.find(w => w.id === workId);
+    if (workToMove) {
+      setPendingPayments(pendingPayments.filter(w => w.id !== workId));
+      setHistoryWorks([{ ...workToMove, status: 'cobrado' }, ...historyWorks]);
+    }
     
     try {
       await turso.execute({
-        sql: 'DELETE FROM works WHERE id = ?',
+        sql: "UPDATE works SET status = 'cobrado' WHERE id = ?",
         args: [workId]
       });
     } catch (error) {
-      console.error('Error eliminando trabajo en Turso:', error);
+      console.error('Error actualizando trabajo a cobrado en Turso:', error);
+    }
+  };
+
+  const handleRestoreWork = async (workId: string) => {
+    const workToRestore = historyWorks.find(w => w.id === workId);
+    if (workToRestore) {
+      setHistoryWorks(historyWorks.filter(w => w.id !== workId));
+      setPendingPayments([{ ...workToRestore, status: 'finalizado' }, ...pendingPayments]);
+    }
+
+    try {
+      await turso.execute({
+        sql: "UPDATE works SET status = 'finalizado' WHERE id = ?",
+        args: [workId]
+      });
+    } catch (error) {
+      console.error('Error restaurando trabajo:', error);
+    }
+  };
+
+  const handleDeleteHistory = async (workId: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar definitivamente este registro del historial?')) return;
+    setHistoryWorks(historyWorks.filter(w => w.id !== workId));
+    try {
+      await turso.execute({
+        sql: "DELETE FROM works WHERE id = ?",
+        args: [workId]
+      });
+    } catch (error) {
+      console.error('Error eliminando trabajo de Turso:', error);
     }
   };
 
@@ -110,6 +180,8 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
         return 'text-yellow-500 bg-yellow-600/20';
       case 'finalizado':
         return 'text-green-500 bg-green-600/20';
+      case 'cobrado':
+        return 'text-purple-500 bg-purple-600/20';
       default:
         return 'text-slate-500 bg-slate-600/20';
     }
@@ -123,6 +195,8 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
         return <AlertCircle size={16} />;
       case 'finalizado':
         return <CheckCircle2 size={16} />;
+      case 'cobrado':
+        return <CheckCheck size={16} />;
       default:
         return null;
     }
@@ -130,17 +204,36 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
 
   return (
     <div className="space-y-6">
-      <div className="flex">
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Plus size={20} />
-          Registrar Trabajo
-        </button>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex bg-slate-900 rounded-lg p-1 w-full sm:w-auto">
+          <button
+            onClick={() => { setShowHistory(false); setIsAdding(false); }}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${!showHistory ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+          >
+            <ListTodo size={16} />
+            Activos
+          </button>
+          <button
+            onClick={() => { setShowHistory(true); setIsAdding(false); }}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${showHistory ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+          >
+            <History size={16} />
+            Historial
+          </button>
+        </div>
+        
+        {!showHistory && (
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus size={20} />
+            Registrar Trabajo
+          </button>
+        )}
       </div>
 
-      {isAdding && (
+      {!showHistory && isAdding && (
         <form onSubmit={handleAddWork} className="bg-slate-800 rounded-xl p-6 border border-blue-500 shadow-lg mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -171,70 +264,134 @@ export default function WorksAndPayments({ onMarkAsPaid }: WorksAndPaymentsProps
         </form>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {showHistory ? (
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center gap-2 mb-6">
-            <Wrench className="text-blue-500" size={24} />
-            <h2 className="text-xl font-semibold text-white">Trabajos Pendientes</h2>
+            <History className="text-purple-500" size={24} />
+            <h2 className="text-xl font-semibold text-white">Historial de Trabajos Cobrados</h2>
           </div>
-          <div className="space-y-3">
-            {pendingWorks.map((work) => (
-              <div
-                key={work.id}
-                className="p-4 bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="text-white font-medium">{work.client}</div>
-                    <div className="text-sm text-slate-400 mt-1">{work.type}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {historyWorks.map((work) => (
+              <div key={work.id} className="relative p-5 bg-slate-900 rounded-xl border border-slate-700 hover:border-purple-500/50 transition-colors group">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-semibold text-white">{work.client}</h3>
+                  <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-slate-800/80 rounded-md backdrop-blur-sm p-1">
+                    <button onClick={() => handleRestoreWork(work.id)} className="p-1.5 text-amber-500 hover:bg-slate-700 rounded-md transition-colors" title="Restaurar a pendientes de cobro">
+                      <RotateCcw size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteHistory(work.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-700 rounded-md transition-colors" title="Eliminar definitivamente">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
+                </div>
+                <p className="text-sm text-slate-400 mb-4">{work.type}</p>
+                <div className="flex items-center justify-between mt-auto">
+                  <span className="text-lg font-semibold text-green-500">{formatCurrency(work.amount || 0)}</span>
                   <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${getStatusColor(work.status)}`}>
                     {getStatusIcon(work.status)}
-                    <span>{work.status === 'en-progreso' ? 'En Progreso' : 'Pendiente'}</span>
+                    <span>Cobrado</span>
                   </div>
                 </div>
               </div>
             ))}
-            {pendingWorks.length === 0 && (
-              <div className="text-center py-6 text-slate-500 text-sm">No hay trabajos pendientes.</div>
+            {historyWorks.length === 0 && (
+              <div className="col-span-full text-center py-12 text-slate-500 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
+                Aún no hay trabajos en el historial.
+              </div>
             )}
           </div>
         </div>
-
-        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-          <div className="flex items-center gap-2 mb-6">
-            <AlertCircle className="text-red-500" size={24} />
-            <h2 className="text-xl font-semibold text-white">Cobros Pendientes</h2>
-          </div>
-          <div className="space-y-3">
-            {pendingPayments.map((work) => (
-              <div
-                key={work.id}
-                className="p-4 bg-slate-900 rounded-lg border-l-4 border-red-500"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="text-white font-medium">{work.client}</div>
-                    <div className="text-sm text-slate-400 mt-1">{work.type}</div>
-                    <div className="text-lg font-semibold text-green-500 mt-2">
-                      {formatCurrency(work.amount || 0)}
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <div className="flex items-center gap-2 mb-6">
+              <Wrench className="text-blue-500" size={24} />
+              <h2 className="text-xl font-semibold text-white">Trabajos Pendientes</h2>
+            </div>
+            <div className="space-y-3">
+              {pendingWorks.map((work) => (
+                <div
+                  key={work.id}
+                  className="p-4 bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="text-white font-medium">{work.client}</div>
+                      <div className="text-sm text-slate-400 mt-1">{work.type}</div>
+                    </div>
+                    <div className={`flex items-center gap-1 pl-2 pr-1 py-1 rounded-md text-xs ${getStatusColor(work.status)} border border-transparent hover:border-current transition-colors focus-within:ring-2 focus-within:ring-blue-500`}>
+                      {getStatusIcon(work.status)}
+                      <select
+                        value={work.status}
+                        onChange={(e) => handleStatusChange(work.id, e.target.value as Work['status'])}
+                        className="bg-transparent outline-none cursor-pointer font-medium w-full"
+                      >
+                        <option value="pendiente" className="bg-slate-800 text-slate-300">Pendiente</option>
+                        <option value="en-progreso" className="bg-slate-800 text-slate-300">En Progreso</option>
+                        <option value="finalizado" className="bg-slate-800 text-slate-300">Finalizado</option>
+                      </select>
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => handlePaymentClick(work.id)}
-                  className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+              ))}
+              {pendingWorks.length === 0 && (
+                <div className="text-center py-6 text-slate-500 text-sm">No hay trabajos pendientes.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <div className="flex items-center gap-2 mb-6">
+              <AlertCircle className="text-red-500" size={24} />
+              <h2 className="text-xl font-semibold text-white">Cobros Pendientes</h2>
+            </div>
+            <div className="space-y-3">
+              {pendingPayments.map((work) => (
+                <div
+                  key={work.id}
+                  className="p-4 bg-slate-900 rounded-lg border-l-4 border-red-500 relative group"
                 >
-                  Marcar como Cobrado
-                </button>
-              </div>
-            ))}
-            {pendingPayments.length === 0 && (
-              <div className="text-center py-6 text-slate-500 text-sm">No hay cobros pendientes.</div>
-            )}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="text-white font-medium">{work.client}</div>
+                      <div className="text-sm text-slate-400 mt-1">{work.type}</div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-2">
+                        <div className="text-lg font-semibold text-green-500">
+                          {formatCurrency(work.amount || 0)}
+                        </div>
+                        <div className={`flex items-center w-max gap-1 pl-2 pr-1 py-1 rounded-md text-xs ${getStatusColor(work.status)} border border-transparent hover:border-current transition-colors focus-within:ring-2 focus-within:ring-blue-500`}>
+                          {getStatusIcon(work.status)}
+                          <select
+                            value={work.status}
+                            onChange={(e) => handleStatusChange(work.id, e.target.value as Work['status'])}
+                            className="bg-transparent outline-none cursor-pointer font-medium"
+                          >
+                            <option value="pendiente" className="bg-slate-800 text-slate-300">Pendiente</option>
+                            <option value="en-progreso" className="bg-slate-800 text-slate-300">En Progreso</option>
+                            <option value="finalizado" className="bg-slate-800 text-slate-300">Finalizado</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteHistory(work.id)} className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-800 rounded-md transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Eliminar trabajo">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => handlePaymentClick(work.id)}
+                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+                  >
+                    Marcar como Cobrado
+                  </button>
+                </div>
+              ))}
+              {pendingPayments.length === 0 && (
+                <div className="text-center py-6 text-slate-500 text-sm">No hay cobros pendientes.</div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

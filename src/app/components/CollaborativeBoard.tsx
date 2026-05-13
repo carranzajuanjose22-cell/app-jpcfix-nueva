@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, AlertCircle, User, Trash2, Edit2, X, Save } from 'lucide-react';
+import { Plus, Clock, AlertCircle, User, Trash2, Edit2, X, Save, CheckCircle, RotateCcw, History, ListTodo } from 'lucide-react';
 import { turso } from './turso';
 
 interface Note {
@@ -9,6 +9,7 @@ interface Note {
   author: string;
   date: string;
   urgent: boolean;
+  done: boolean;
 }
 
 export default function CollaborativeBoard() {
@@ -16,6 +17,7 @@ export default function CollaborativeBoard() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Traer las notas de Turso al cargar el componente
   useEffect(() => {
@@ -28,9 +30,17 @@ export default function CollaborativeBoard() {
             description TEXT,
             author TEXT,
             date TEXT,
-            urgent INTEGER
+            urgent INTEGER,
+            done INTEGER DEFAULT 0
           );
         `);
+
+        // Intentar agregar la columna 'done' si la tabla ya existía de antes
+        try {
+          await turso.execute("ALTER TABLE notes ADD COLUMN done INTEGER DEFAULT 0");
+        } catch (e) {
+          // Si la columna ya existe, ignoramos el error
+        }
 
         const { rows } = await turso.execute('SELECT * FROM notes ORDER BY date DESC');
         const loadedNotes = rows.map((row: any) => ({
@@ -39,7 +49,8 @@ export default function CollaborativeBoard() {
           description: String(row.description),
           author: String(row.author),
           date: String(row.date),
-          urgent: Boolean(row.urgent) // Turso guarda los booleanos como 1 o 0
+          urgent: Boolean(row.urgent), // Turso guarda los booleanos como 1 o 0
+          done: Boolean(row.done)
         }));
         setNotes(loadedNotes);
       } catch (error) {
@@ -60,6 +71,7 @@ export default function CollaborativeBoard() {
       author: 'Yo', // Aquí más adelante podemos poner el usuario actual
       date: new Date().toISOString().split('T')[0],
       urgent: formData.get('urgent') === 'on',
+      done: false,
     };
 
     // Actualizamos la interfaz inmediatamente (optimista)
@@ -69,8 +81,8 @@ export default function CollaborativeBoard() {
     // Enviamos a la nube
     try {
       await turso.execute({
-        sql: 'INSERT INTO notes (id, title, description, author, date, urgent) VALUES (?, ?, ?, ?, ?, ?)',
-        args: [newNote.id, newNote.title, newNote.description, newNote.author, newNote.date, newNote.urgent ? 1 : 0]
+        sql: 'INSERT INTO notes (id, title, description, author, date, urgent, done) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        args: [newNote.id, newNote.title, newNote.description, newNote.author, newNote.date, newNote.urgent ? 1 : 0, 0]
       });
     } catch (error) {
       console.error('Error guardando nota en Turso:', error);
@@ -99,6 +111,21 @@ export default function CollaborativeBoard() {
     }
   };
 
+  // Cambiar estado de completado
+  const handleToggleDone = async (id: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    setNotes(notes.map(note => note.id === id ? { ...note, done: newStatus } : note));
+
+    try {
+      await turso.execute({
+        sql: 'UPDATE notes SET done = ? WHERE id = ?',
+        args: [newStatus ? 1 : 0, id]
+      });
+    } catch (error) {
+      console.error('Error actualizando estado de la nota:', error);
+    }
+  };
+
   // Eliminar nota de la BD
   const handleDeleteNote = async (id: string) => {
     // 1. Actualizamos la interfaz primero para que se sienta instantáneo
@@ -118,14 +145,35 @@ export default function CollaborativeBoard() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold text-white shrink-0">Tablero Colaborativo</h2>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Plus size={20} />
-          Nueva Nota
-        </button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          <h2 className="text-xl font-semibold text-white shrink-0">Tablero Colaborativo</h2>
+          <div className="flex bg-slate-900 rounded-lg p-1 w-full sm:w-auto">
+            <button
+              onClick={() => { setShowHistory(false); setEditingId(null); }}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${!showHistory ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+            >
+              <ListTodo size={16} />
+              Pendientes
+            </button>
+            <button
+              onClick={() => { setShowHistory(true); setIsAdding(false); setEditingId(null); }}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${showHistory ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+            >
+              <History size={16} />
+              Historial
+            </button>
+          </div>
+        </div>
+
+        {!showHistory && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus size={20} />
+            Nueva Nota
+          </button>
+        )}
       </div>
 
       {isAdding && (
@@ -146,12 +194,17 @@ export default function CollaborativeBoard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {notes.map((note) => (
+        {notes.filter(n => Boolean(n.done) === showHistory).length === 0 ? (
+          <div className="col-span-full py-12 text-center text-slate-400 bg-slate-800/30 rounded-xl border border-slate-700/50 border-dashed">
+            {showHistory ? 'No hay trabajos marcados como realizados aún.' : 'No hay tareas pendientes en este momento.'}
+          </div>
+        ) : (
+          notes.filter(n => Boolean(n.done) === showHistory).map((note) => (
           <div
             key={note.id}
             className={`relative flex flex-col bg-slate-800 rounded-xl p-5 border ${
-              note.urgent ? 'border-red-500/50 shadow-sm shadow-red-500/10' : 'border-slate-700'
-            } hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group`}
+              note.done ? 'border-green-500/50 opacity-80' : note.urgent ? 'border-red-500/50 shadow-sm shadow-red-500/10' : 'border-slate-700'
+            } hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group hover:opacity-100`}
           >
             {editingId === note.id ? (
               <form onSubmit={(e) => handleUpdateNote(e, note.id)} className="flex flex-col h-full">
@@ -176,10 +229,15 @@ export default function CollaborativeBoard() {
               <>
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-lg text-white pr-16">{note.title}</h3>
-                  <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-slate-800/80 rounded-md backdrop-blur-sm">
-                    <button onClick={() => setEditingId(note.id)} className="text-slate-400 hover:text-blue-500 p-1.5 rounded-md hover:bg-slate-700 transition-colors" title="Editar nota">
-                      <Edit2 size={16} />
+                  <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-slate-800/80 rounded-md backdrop-blur-sm p-1">
+                    <button onClick={() => handleToggleDone(note.id, note.done)} className={`p-1.5 rounded-md transition-colors ${note.done ? 'text-amber-500 hover:bg-slate-700' : 'text-green-500 hover:bg-slate-700'}`} title={note.done ? "Restaurar a pendientes" : "Marcar como realizado"}>
+                      {note.done ? <RotateCcw size={16} /> : <CheckCircle size={16} />}
                     </button>
+                    {!note.done && (
+                      <button onClick={() => setEditingId(note.id)} className="text-slate-400 hover:text-blue-500 p-1.5 rounded-md hover:bg-slate-700 transition-colors" title="Editar nota">
+                        <Edit2 size={16} />
+                      </button>
+                    )}
                     <button onClick={() => handleDeleteNote(note.id)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-slate-700 transition-colors" title="Eliminar nota">
                       <Trash2 size={16} />
                     </button>
@@ -199,7 +257,8 @@ export default function CollaborativeBoard() {
               </>
             )}
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
