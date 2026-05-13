@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, AlertCircle, User, Trash2 } from 'lucide-react';
+import { Plus, Clock, AlertCircle, User, Trash2, Edit2, X, Save } from 'lucide-react';
 import { turso } from './turso';
 
 interface Note {
@@ -15,6 +15,7 @@ export default function CollaborativeBoard() {
   const [notes, setNotes] = useState<Note[]>([]);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Traer las notas de Turso al cargar el componente
   useEffect(() => {
@@ -76,6 +77,28 @@ export default function CollaborativeBoard() {
     }
   };
 
+  // Actualizar nota en la BD
+  const handleUpdateNote = async (e: React.FormEvent<HTMLFormElement>, id: string) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const urgent = formData.get('urgent') === 'on';
+
+    // Actualizamos la interfaz primero
+    setNotes(notes.map(note => note.id === id ? { ...note, title, description, urgent } : note));
+    setEditingId(null); // Cerramos el modo edición
+
+    try {
+      await turso.execute({
+        sql: 'UPDATE notes SET title = ?, description = ?, urgent = ? WHERE id = ?',
+        args: [title, description, urgent ? 1 : 0, id]
+      });
+    } catch (error) {
+      console.error('Error actualizando nota en Turso:', error);
+    }
+  };
+
   // Eliminar nota de la BD
   const handleDeleteNote = async (id: string) => {
     // 1. Actualizamos la interfaz primero para que se sienta instantáneo
@@ -107,8 +130,8 @@ export default function CollaborativeBoard() {
 
       {isAdding && (
         <form onSubmit={handleSaveNote} className="bg-slate-800 rounded-lg p-4 border border-blue-500 shadow-lg shadow-blue-500/10">
-          <input name="title" placeholder="Título de la nota" required className="w-full bg-slate-900 text-white px-4 py-2 rounded-lg mb-3 border border-slate-700 focus:border-blue-500 focus:outline-none" />
-          <textarea name="description" placeholder="Descripción de la tarea..." required className="w-full bg-slate-900 text-white px-4 py-2 rounded-lg mb-3 border border-slate-700 focus:border-blue-500 focus:outline-none" rows={2}></textarea>
+          <input name="title" placeholder="Título de la nota" required className="w-full bg-slate-900 text-white font-medium px-4 py-3 rounded-lg mb-3 border border-slate-700 focus:border-blue-500 focus:outline-none transition-colors" />
+          <textarea name="description" placeholder="Descripción de la tarea..." required className="w-full bg-slate-900 text-white px-4 py-3 rounded-lg mb-3 border border-slate-700 focus:border-blue-500 focus:outline-none resize-y" rows={4}></textarea>
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
               <input type="checkbox" name="urgent" className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800" />
@@ -126,34 +149,55 @@ export default function CollaborativeBoard() {
         {notes.map((note) => (
           <div
             key={note.id}
-            className={`bg-slate-800 rounded-lg p-4 border-l-4 ${
-              note.urgent ? 'border-red-500' : 'border-slate-700'
-            } hover:bg-slate-750 transition-colors cursor-pointer`}
+            className={`relative flex flex-col bg-slate-800 rounded-xl p-5 border ${
+              note.urgent ? 'border-red-500/50 shadow-sm shadow-red-500/10' : 'border-slate-700'
+            } hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group`}
           >
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="font-semibold text-white">{note.title}</h3>
-              <div className="flex items-center gap-2">
-                {note.urgent && <AlertCircle className="text-red-500" size={20} />}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
-                  className="text-slate-500 hover:text-red-500 transition-colors p-1 rounded hover:bg-slate-700"
-                  title="Eliminar nota"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            <p className="text-slate-400 text-sm mb-3">{note.description}</p>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <div className="flex items-center gap-1">
-                <User size={14} />
-                <span>{note.author}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock size={14} />
-                <span>{new Date(note.date).toLocaleDateString('es-AR')}</span>
-              </div>
-            </div>
+            {editingId === note.id ? (
+              <form onSubmit={(e) => handleUpdateNote(e, note.id)} className="flex flex-col h-full">
+                <input name="title" defaultValue={note.title} required className="w-full bg-slate-900 text-white font-medium px-3 py-2 rounded-lg mb-3 border border-slate-700 focus:border-blue-500 focus:outline-none" />
+                <textarea name="description" defaultValue={note.description} required className="w-full flex-1 bg-slate-900 text-white px-3 py-2 rounded-lg mb-3 border border-slate-700 focus:border-blue-500 focus:outline-none resize-y min-h-[100px]" rows={4} />
+                <div className="flex items-center justify-between mt-auto">
+                  <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                    <input type="checkbox" name="urgent" defaultChecked={note.urgent} className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-blue-500" />
+                    Urgente
+                  </label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setEditingId(null)} className="p-2 text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" title="Cancelar">
+                      <X size={18} />
+                    </button>
+                    <button type="submit" className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors" title="Guardar Cambios">
+                      <Save size={18} />
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-lg text-white pr-16">{note.title}</h3>
+                  <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-slate-800/80 rounded-md backdrop-blur-sm">
+                    <button onClick={() => setEditingId(note.id)} className="text-slate-400 hover:text-blue-500 p-1.5 rounded-md hover:bg-slate-700 transition-colors" title="Editar nota">
+                      <Edit2 size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteNote(note.id)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-slate-700 transition-colors" title="Eliminar nota">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+                {note.urgent && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 text-xs font-medium mb-3 w-max">
+                    <AlertCircle size={14} />
+                    Urgente
+                  </div>
+                )}
+                <p className="text-slate-300 text-sm mb-5 flex-1 whitespace-pre-wrap leading-relaxed">{note.description}</p>
+                <div className="flex items-center justify-between text-xs text-slate-500 mt-auto pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center gap-1.5"><User size={14} /><span>{note.author}</span></div>
+                  <div className="flex items-center gap-1.5"><Clock size={14} /><span>{new Date(note.date).toLocaleDateString('es-AR')}</span></div>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>
