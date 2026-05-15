@@ -220,11 +220,6 @@ export default function App() {
 
           {activeView === 'tablero' && (
             <>
-              <FinancialSummary
-                efectivo={saldoEfectivo}
-                transferencia={saldoTransferencia}
-                cajaJpcfix={cajaJpcfix}
-              />
               <CollaborativeBoard currentUser={currentUser} />
             </>
           )}
