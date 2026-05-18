@@ -1,0 +1,12 @@
+# Set default behavior, in case people don't have core.autocrlf set.
+# This will handle text files automatically and leave binary files alone.
+* text=auto
+
+# Force specific text files to always use LF (Unix-style) line endings in the repo.
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.css   text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf

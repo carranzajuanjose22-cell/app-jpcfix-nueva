@@ -169,6 +169,33 @@ export default function App() {
     }
   };
 
+  const handleLiquidate = async (method: 'efectivo' | 'transferencia', amount: number) => {
+    const newTransaction: Transaction = {
+      id: Date.now().toString(),
+      type: 'egreso',
+      amount: amount,
+      concept: 'Liquidación dividida a Mateo y Juanjo',
+      paymentMethod: method,
+      date: new Date().toISOString(), // Usamos toISOString completo para guardar fecha y hora
+    };
+
+    try {
+      // Guardamos la liquidación en Turso
+      await turso.execute({
+        sql: 'INSERT INTO transactions (id, type, amount, concept, paymentMethod, date) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [newTransaction.id, newTransaction.type, newTransaction.amount, newTransaction.concept, newTransaction.paymentMethod, newTransaction.date]
+      });
+
+      // Actualizamos UI al instante (el historial y el saldo a 0)
+      setTransactions(prev => [newTransaction, ...prev]);
+      if (method === 'efectivo') setSaldoEfectivo(0);
+      if (method === 'transferencia') setSaldoTransferencia(0);
+    } catch (err) {
+      console.error('Error al registrar la liquidación en Turso:', err);
+      alert('Hubo un error al registrar la liquidación.');
+    }
+  };
+
   const handleMarkAsPaid = (workId: string) => {
     console.log('Marcar como cobrado:', workId);
     setActiveView('finanzas');
@@ -230,6 +257,7 @@ export default function App() {
                 efectivo={saldoEfectivo}
                 transferencia={saldoTransferencia}
                 cajaJpcfix={cajaJpcfix}
+                onLiquidate={handleLiquidate}
               />
               <TransactionHistory
                 transactions={transactions}

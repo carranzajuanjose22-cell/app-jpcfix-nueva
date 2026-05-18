@@ -74,7 +74,13 @@ export default function TransactionHistory({ transactions, onNewIngreso, onNewEg
                   )}
                   <span>{transaction.paymentMethod === 'efectivo' ? 'Efectivo' : 'Transferencia'}</span>
                   <span>•</span>
-                  <span>{new Date(transaction.date).toLocaleDateString('es-AR')}</span>
+                  <span>{new Date(transaction.date).toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
                 </div>
               </div>
             </div>
